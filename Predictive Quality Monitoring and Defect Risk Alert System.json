@@ -1,0 +1,294 @@
+{
+  "name": "Predictive Quality Monitoring and Defect Risk Alert System",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quality-check",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "0aa8cd51-d8a3-4ec1-b0a5-0db034cf8da7",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1136,
+        192
+      ],
+      "webhookId": "0d245372-97d1-48d5-9171-e1bdd8407468"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "machine_id",
+              "value": "={{ $json.machine_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "timestamp",
+              "value": "={{ $json.timestamp || new Date().toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "temperature",
+              "value": "={{ $json.temperature }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "vibration",
+              "value": "={{ $json.vibration }}",
+              "type": "number"
+            },
+            {
+              "id": "id-5",
+              "name": "pressure",
+              "value": "={{ $json.pressure }}",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7a94ca25-6906-4464-bfcb-37e4cda6c567",
+      "name": "Prepare Model Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -896,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n Mock model for testing. Replace with HTTP Request node to call your real inference endpoint.\n*/\nconst input = $input.first().json;\n// A very simple rule to mock a realistic prediction\nconst temp = parseFloat(input.temperature || 0);\nconst vib = parseFloat(input.vibration || 0);\nlet prediction = 'normal';\nlet confidence = 0.12;\nif ((temp > 90 && vib > 5) || vib > 6) {\n  prediction = 'high_defect_risk';\n  confidence = 0.92;\n} else if (temp > 80 || vib > 4) {\n  prediction = 'medium_defect_risk';\n  confidence = 0.63;\n} else {\n  prediction = 'normal';\n  confidence = 0.2;\n}\nreturn {\n  machine_id: input.machine_id || 'unknown',\n  temperature: input.temperature,\n  vibration: input.vibration,\n  pressure: input.pressure,\n  prediction,\n  confidence\n};"
+      },
+      "id": "1a51b39f-86ea-4d08-9e20-a0a0b025719e",
+      "name": "Mock Model",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/* Normalize model output to consistent keys for downstream nodes */\nconst d = $input.first().json;\nconst out = {\n  machine_id: d.machine_id || d.machine || 'unknown',\n  temperature: d.temperature || null,\n  vibration: d.vibration || null,\n  pressure: d.pressure || null,\n  prediction: d.prediction || (d[0] && d[0].label) || 'unknown',\n  confidence: (typeof d.confidence === 'number') ? d.confidence : (d.score || 0)\n};\nreturn out;"
+      },
+      "id": "e47aa6b5-385b-460f-a19b-8ef1a54fc60d",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Normalize').item.json.prediction }}",
+              "rightValue": "high_defect_risk",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $('Normalize').item.json.confidence }}",
+              "rightValue": "0.8",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1239f655-d89f-4df8-9378-fd1fd7c46ac9",
+      "name": "IF",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#quality-alerts"
+        },
+        "text": "=⚠️ *High defect risk detected*\nMachine: {{ $('Normalize').item.json.machine_id }}\nPrediction: {{ $('Normalize').item.json.prediction }}\nConfidence: {{ Math.round($('Normalize').item.json.confidence * 100) }}%\nTemp: {{ $('Normalize').item.json.temperature }}\nVibration: {{ $('Normalize').item.json.vibration }}\nPressure: {{ $('Normalize').item.json.pressure }}",
+        "otherOptions": {}
+      },
+      "id": "a5ec2609-33ca-4580-852d-42fbc501cf57",
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "811ebebe-1462-431a-bca0-70a9df5a9a0f",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "KdcZg9NH9PtgHm6c",
+          "name": "Slack account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-cmms.example.com/api/tasks",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"Inspection required for {{ $json.machine_id }}\",\n  \"priority\": \"high\",\n  \"notes\": \"Predicted defect risk {{ $json.prediction }} ({{ Math.round($json.confidence * 100) }}%). Sensor values: temp={{ $json.temperature }}, vib={{ $json.vibration }}, pressure={{ $json.pressure }}\"\n}",
+        "options": {}
+      },
+      "id": "0a8ed726-044e-44d8-8b3b-fd0bb7754704",
+      "name": "Create CMMS Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        0,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "logged",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "logged_at",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0a47e857-ff93-4655-a03a-48805e9ee9f4",
+      "name": "Log Event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        384
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Model Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Model Input": {
+      "main": [
+        [
+          {
+            "node": "Mock Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Model": {
+      "main": [
+        [
+          {
+            "node": "Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [
+          {
+            "node": "IF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create CMMS Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "124657e3-a867-408d-9fd0-957535422525",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "16afb85dc4adef19a4bd4710d34a908f1a0a2e953512e193d97612d25804e6f5"
+  },
+  "id": "A1338YE4YXNKcg12",
+  "tags": []
+}
