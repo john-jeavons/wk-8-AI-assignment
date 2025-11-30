@@ -1,5 +1,4 @@
 
-(Simulation link)[https://john-jeavons.app.n8n.cloud/workflow/A1338YE4YXNKcg12]
 AI Agent Implementation Strategy for AutoParts Inc.
 
 AutoParts Inc. faces increasing production inefficiencies caused by high defect rates, unpredictable machine failures, and rising labor costs. To address these challenges, the company can deploy a coordinated, multi-agent AI system consisting of Predictive Maintenance Agents, Quality Inspection Agents, and Production Optimization Agents. These agents work independently but communicate through a central workflow orchestrator such as n8n or Make.com, ensuring scalable and automated decision-making across the manufacturing pipeline.
@@ -163,4 +162,4 @@ Notifications via email or database logging
 Full execution logs
 
 👉 Simulation Workflow Link:
-(Insert your GitHub repo link where you uploaded your exported JSON file, as requested in the assignment.)
+([https://john-jeavons.app.n8n.cloud/workflow/A1338YE4YXNKcg12])
